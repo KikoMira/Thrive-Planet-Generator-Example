@@ -31,7 +31,8 @@ const atmosphereParams = {
     carbon: 0.5,
     oxygen: 0.3,
     nitrogen: 0.2,
-    starType: 'G-type'
+    starType: 'G-type',
+    fogThickness: 0.1 // Added fog thickness parameter
 };
 
 const gui = new dat.GUI();
@@ -51,17 +52,17 @@ gui.add(atmosphereParams, 'carbon', 0.0, 1.0).name('Carbon').onChange(updateAtmo
 gui.add(atmosphereParams, 'oxygen', 0.0, 1.0).name('Oxygen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'nitrogen', 0.0, 1.0).name('Nitrogen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'starType', ['G-type', 'K-type', 'M-type']).name('Star Type').onChange(updateAtmosphere);
+gui.add(atmosphereParams, 'fogThickness', 0.01, 1.0).name('Fog Thickness').onChange(updateAtmosphere); // Added slider for thickness
 
 const vertexShader = `
-    varying vec3 vNormal;
     varying vec3 vPosition;
+    varying vec3 vNormal;
     varying vec3 vLightDir;
-
     uniform vec3 lightPosition;
 
     void main() {
-        vNormal = normalize(normalMatrix * normal);
         vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+        vNormal = normalize(normalMatrix * normal);
         vLightDir = normalize(lightPosition - vPosition);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
@@ -72,8 +73,9 @@ const fragmentShader = `
     uniform float carbon;
     uniform float oxygen;
     uniform float nitrogen;
-    varying vec3 vNormal;
+    uniform float fogThickness; // Added uniform for fog thickness
     varying vec3 vPosition;
+    varying vec3 vNormal;
     varying vec3 vLightDir;
 
     void main() {
@@ -84,12 +86,13 @@ const fragmentShader = `
         vec3 baseColor = mix(oxygenColor, carbonColor, carbon);
         baseColor = mix(baseColor, nitrogenColor, nitrogen);
 
-        float intensity = max(dot(vNormal, vLightDir), 0.0);
-        vec3 color = baseColor * intensity;
-
+        // Compute fog effect based on depth and thickness
         float distance = length(vPosition);
-        float alpha = smoothstep(0.9, 1.1, distance);
-        gl_FragColor = vec4(color, alpha);
+        float fogDensity = exp(-distance * fogThickness); // Control fog density
+        float fogFactor = smoothstep(0.1, 1.0, distance);
+
+        vec3 color = baseColor * max(dot(vNormal, vLightDir), 0.0);
+        gl_FragColor = vec4(color * fogFactor, fogDensity);
     }
 `;
 
@@ -173,7 +176,7 @@ function createAtmosphere() {
         scene.remove(atmosphere);
     }
 
-    const geometry = new THREE.SphereGeometry(1.2, 128, 128);
+    const geometry = new THREE.SphereGeometry(1.1, 128, 128); // Slightly larger than planet
     const material = new THREE.ShaderMaterial({
         vertexShader: vertexShader,
         fragmentShader: fragmentShader,
@@ -182,11 +185,12 @@ function createAtmosphere() {
             carbon: { value: atmosphereParams.carbon },
             oxygen: { value: atmosphereParams.oxygen },
             nitrogen: { value: atmosphereParams.nitrogen },
-            lightPosition: { value: light.position }
+            lightPosition: { value: light.position },
+            fogThickness: { value: atmosphereParams.fogThickness } // Added uniform for fog thickness
         },
-        side: THREE.BackSide,
+        side: THREE.FrontSide,
         transparent: true,
-        opacity: 0.6
+        blending: THREE.AdditiveBlending
     });
 
     atmosphere = new THREE.Mesh(geometry, material);
@@ -215,7 +219,8 @@ function updateAtmosphere() {
     if (atmosphere) {
         atmosphere.material.uniforms.carbon.value = atmosphereParams.carbon;
         atmosphere.material.uniforms.oxygen.value = atmosphereParams.oxygen;
-        atmosphere.material.uniforms.nitrogen.value = atmosphereParams.nitrogen; // Updated
+        atmosphere.material.uniforms.nitrogen.value = atmosphereParams.nitrogen;
+        atmosphere.material.uniforms.fogThickness.value = atmosphereParams.fogThickness;
 
         let starColor;
         switch (atmosphereParams.starType) {
@@ -243,7 +248,6 @@ function animate() {
 
 animate();
 
-
 window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -251,5 +255,5 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('wheel', (event) => {
-    camera.position.z += event.deltaY * 0.01;
+    camera.position.z += event.deltaY * 0.001;
 });
