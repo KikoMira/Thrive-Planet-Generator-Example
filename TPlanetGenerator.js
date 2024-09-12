@@ -30,7 +30,7 @@ const params = {
 const atmosphereParams = {
     carbon: 0.5,
     oxygen: 0.3,
-    hydrogen: 0.2,
+    nitrogen: 0.2,
     starType: 'G-type'
 };
 
@@ -49,7 +49,7 @@ gui.add(params, 'plateauHeight', 0.0, 3.0).name('Plateau Height').onChange(updat
 
 gui.add(atmosphereParams, 'carbon', 0.0, 1.0).name('Carbon').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'oxygen', 0.0, 1.0).name('Oxygen').onChange(updateAtmosphere);
-gui.add(atmosphereParams, 'hydrogen', 0.0, 1.0).name('Hydrogen').onChange(updateAtmosphere);
+gui.add(atmosphereParams, 'nitrogen', 0.0, 1.0).name('Nitrogen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'starType', ['G-type', 'K-type', 'M-type']).name('Star Type').onChange(updateAtmosphere);
 
 const vertexShader = `
@@ -71,7 +71,7 @@ const fragmentShader = `
     uniform vec3 starColor;
     uniform float carbon;
     uniform float oxygen;
-    uniform float hydrogen;
+    uniform float nitrogen;
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec3 vLightDir;
@@ -79,10 +79,10 @@ const fragmentShader = `
     void main() {
         vec3 oxygenColor = vec3(0.0, 0.5, 1.0);
         vec3 carbonColor = vec3(1.0, 0.3, 0.3);
-        vec3 hydrogenColor = vec3(0.8, 0.8, 1.0);
+        vec3 nitrogenColor = vec3(0.8, 0.8, 0.0);
 
         vec3 baseColor = mix(oxygenColor, carbonColor, carbon);
-        baseColor = mix(baseColor, hydrogenColor, hydrogen);
+        baseColor = mix(baseColor, nitrogenColor, nitrogen);
 
         float intensity = max(dot(vNormal, vLightDir), 0.0);
         vec3 color = baseColor * intensity;
@@ -181,7 +181,7 @@ function createAtmosphere() {
             starColor: { value: new THREE.Color(0xffff00) },
             carbon: { value: atmosphereParams.carbon },
             oxygen: { value: atmosphereParams.oxygen },
-            hydrogen: { value: atmosphereParams.hydrogen },
+            nitrogen: { value: atmosphereParams.nitrogen },
             lightPosition: { value: light.position }
         },
         side: THREE.BackSide,
@@ -215,18 +215,18 @@ function updateAtmosphere() {
     if (atmosphere) {
         atmosphere.material.uniforms.carbon.value = atmosphereParams.carbon;
         atmosphere.material.uniforms.oxygen.value = atmosphereParams.oxygen;
-        atmosphere.material.uniforms.hydrogen.value = atmosphereParams.hydrogen;
+        atmosphere.material.uniforms.nitrogen.value = atmosphereParams.nitrogen; // Updated
 
         let starColor;
         switch (atmosphereParams.starType) {
             case 'K-type':
-                starColor = new THREE.Color(0xffa500);
+                starColor = new THREE.Color(0xffa500); // Orange for K-type
                 break;
             case 'M-type':
-                starColor = new THREE.Color(0xff0000);
+                starColor = new THREE.Color(0xff0000); // Red for M-type
                 break;
             default:
-                starColor = new THREE.Color(0xffff00);
+                starColor = new THREE.Color(0xffff00); // Yellow for G-type
         }
         atmosphere.material.uniforms.starColor.value = starColor;
         atmosphere.material.needsUpdate = true;
@@ -236,11 +236,13 @@ function updateAtmosphere() {
 function animate() {
     requestAnimationFrame(animate);
     planet.rotation.y += params.rotationSpeed;
+    water.rotation.y += params.rotationSpeed;
     atmosphere.rotation.y += params.rotationSpeed;
     renderer.render(scene, camera);
 }
 
 animate();
+
 
 window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
