@@ -32,7 +32,7 @@ const atmosphereParams = {
     oxygen: 0.3,
     nitrogen: 0.2,
     starType: 'G-type',
-    fogThickness: 0.1 // Added fog thickness parameter
+    fogThickness: 0.1
 };
 
 const gui = new dat.GUI();
@@ -176,7 +176,7 @@ function createAtmosphere() {
         scene.remove(atmosphere);
     }
 
-    const geometry = new THREE.SphereGeometry(1.1, 128, 128); // Slightly larger than planet
+    const geometry = new THREE.SphereGeometry(1.1, 128, 128);
     const material = new THREE.ShaderMaterial({
         vertexShader: vertexShader,
         fragmentShader: fragmentShader,
@@ -186,7 +186,7 @@ function createAtmosphere() {
             oxygen: { value: atmosphereParams.oxygen },
             nitrogen: { value: atmosphereParams.nitrogen },
             lightPosition: { value: light.position },
-            fogThickness: { value: atmosphereParams.fogThickness } // Added uniform for fog thickness
+            fogThickness: { value: atmosphereParams.fogThickness }
         },
         side: THREE.FrontSide,
         transparent: true,
