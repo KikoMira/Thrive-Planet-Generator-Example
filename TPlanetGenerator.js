@@ -22,7 +22,9 @@ const params = {
     persistence: 0.5,
     planetScale: 1.0,
     rotationSpeed: 0.01,
-    waterScale: 0.5
+    waterScale: 0.5,
+    flatlandThreshold: 0.1,
+    plateauHeight: 1.5
 };
 
 const atmosphereParams = {
@@ -42,6 +44,10 @@ gui.add(params, 'persistence', 0.1, 1.0).name('Persistence').onChange(updatePlan
 gui.add(params, 'planetScale', 0.1, 2.0).name('Planet Scale').onChange(updatePlanetScale);
 gui.add(params, 'rotationSpeed', 0.001, 0.1).name('Rotation Speed');
 gui.add(params, 'waterScale', 0.1, 2.0).name('Water Scale').onChange(updateWater);
+gui.add(params, 'flatlandThreshold', 0.0, 1.0).name('Flatland Threshold').onChange(updatePlanet);
+gui.add(params, 'plateauHeight', 0.0, 3.0).name('Plateau Height').onChange(updatePlanet);
+
+// Atmosphere controls
 gui.add(atmosphereParams, 'carbon', 0.0, 1.0).name('Carbon').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'oxygen', 0.0, 1.0).name('Oxygen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'hydrogen', 0.0, 1.0).name('Hydrogen').onChange(updateAtmosphere);
@@ -99,6 +105,12 @@ function generateNoise(x, y, z) {
         frequency *= 2.0;
     }
 
+    if (noise < params.flatlandThreshold) {
+        return noise * 0.5;
+    } else if (noise > params.plateauHeight) {
+        return params.plateauHeight;
+    }
+
     return noise;
 }
 
@@ -138,7 +150,7 @@ scene.add(planet);
 
 function createWater() {
     const textureLoader = new THREE.TextureLoader();
-    const gradientTexture = textureLoader.load('WaterTexture.png'); // NOTE: for some reason dosent work
+    const gradientTexture = textureLoader.load('WaterTexture.png');
 
     const geometry = new THREE.SphereGeometry(1, 128, 128);
     const material = new THREE.MeshStandardMaterial({
@@ -209,16 +221,15 @@ function updateAtmosphere() {
         let starColor;
         switch (atmosphereParams.starType) {
             case 'K-type':
-                starColor = new THREE.Color(0xffa500); // Orange for K-type
+                starColor = new THREE.Color(0xffa500);
                 break;
             case 'M-type':
-                starColor = new THREE.Color(0xff0000); // Red for M-type
+                starColor = new THREE.Color(0xff0000);
                 break;
             default:
-                starColor = new THREE.Color(0xffff00); // Yellow for G-type
+                starColor = new THREE.Color(0xffff00);
         }
         atmosphere.material.uniforms.starColor.value = starColor;
-
         atmosphere.material.needsUpdate = true;
     }
 }
