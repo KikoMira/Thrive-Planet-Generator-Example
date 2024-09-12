@@ -47,7 +47,6 @@ gui.add(params, 'waterScale', 0.1, 2.0).name('Water Scale').onChange(updateWater
 gui.add(params, 'flatlandThreshold', 0.0, 1.0).name('Flatland Threshold').onChange(updatePlanet);
 gui.add(params, 'plateauHeight', 0.0, 3.0).name('Plateau Height').onChange(updatePlanet);
 
-// Atmosphere controls
 gui.add(atmosphereParams, 'carbon', 0.0, 1.0).name('Carbon').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'oxygen', 0.0, 1.0).name('Oxygen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'hydrogen', 0.0, 1.0).name('Hydrogen').onChange(updateAtmosphere);
