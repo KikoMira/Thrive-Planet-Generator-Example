@@ -183,13 +183,13 @@ function createWater() {
     const normalMap = textureLoader.load('WaterNormalMap.png');
 
     const material = new THREE.MeshStandardMaterial({
-    color: 0x0066ff,  // Βαθύτερο μπλε
+    color: 0x0066ff,  
     roughness: 0.1,
     metalness: 0.5,
     normalMap: normalMap,
     envMap: renderer.environment,
     refractionRatio: 0.95,
-    transparent: true,  // Προσθήκη διαφάνειας
+    transparent: true, 
     opacity: 0.8,
     emissive: 0x0033ff,
     emissiveIntensity: 0.2
