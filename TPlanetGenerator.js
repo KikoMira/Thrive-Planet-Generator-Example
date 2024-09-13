@@ -1,3 +1,45 @@
+const vertexShader = `
+    varying vec3 vPosition;
+    varying vec3 vNormal;
+    varying vec3 vLightDir;
+    uniform vec3 lightPosition;
+
+    void main() {
+        vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+        vNormal = normalize(normalMatrix * normal);
+        vLightDir = normalize(lightPosition - vPosition);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+`;
+
+const fragmentShader = `
+    uniform vec3 starColor;
+    uniform float carbon;
+    uniform float oxygen;
+    uniform float nitrogen;
+    uniform float fogThickness;
+    varying vec3 vPosition;
+    varying vec3 vNormal;
+    varying vec3 vLightDir;
+
+    void main() {
+        vec3 oxygenColor = vec3(0.0, 0.5, 1.0);
+        vec3 carbonColor = vec3(1.0, 0.3, 0.3);
+        vec3 nitrogenColor = vec3(0.8, 0.8, 0.0);
+
+        vec3 baseColor = mix(oxygenColor, carbonColor, carbon);
+        baseColor = mix(baseColor, nitrogenColor, nitrogen);
+
+        // Compute fog effect based on depth and thickness
+        float distance = length(vPosition);
+        float fogDensity = exp(-distance * fogThickness);
+        float fogFactor = smoothstep(0.1, 1.0, distance);
+
+        vec3 color = baseColor * max(dot(vNormal, vLightDir), 0.0);
+        gl_FragColor = vec4(color * fogFactor, fogDensity);
+    }
+`;
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
@@ -32,7 +74,8 @@ const atmosphereParams = {
     oxygen: 0.3,
     nitrogen: 0.2,
     starType: 'G-type',
-    fogThickness: 0.1
+    fogThickness: 0.1,
+    showAtmosphere: true
 };
 
 const gui = new dat.GUI();
@@ -52,49 +95,24 @@ gui.add(atmosphereParams, 'carbon', 0.0, 1.0).name('Carbon').onChange(updateAtmo
 gui.add(atmosphereParams, 'oxygen', 0.0, 1.0).name('Oxygen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'nitrogen', 0.0, 1.0).name('Nitrogen').onChange(updateAtmosphere);
 gui.add(atmosphereParams, 'starType', ['G-type', 'K-type', 'M-type']).name('Star Type').onChange(updateAtmosphere);
-gui.add(atmosphereParams, 'fogThickness', 0.01, 1.0).name('Fog Thickness').onChange(updateAtmosphere); // Added slider for thickness
+gui.add(atmosphereParams, 'fogThickness', 0.01, 1.0).name('Fog Thickness').onChange(updateAtmosphere);
+gui.add(atmosphereParams, 'showAtmosphere').name('Show Atmosphere').onChange(updateAtmosphereVisibility);
 
-const vertexShader = `
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    varying vec3 vLightDir;
-    uniform vec3 lightPosition;
+const biomeColors = {
+    desert: 0xeed9c4,
+    plains: 0x228b22,
+    forest: 0x228b22,
+    tundra: 0xc0c0c0,
+    snow: 0xffffff
+};
 
-    void main() {
-        vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
-        vNormal = normalize(normalMatrix * normal);
-        vLightDir = normalize(lightPosition - vPosition);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-`;
-
-const fragmentShader = `
-    uniform vec3 starColor;
-    uniform float carbon;
-    uniform float oxygen;
-    uniform float nitrogen;
-    uniform float fogThickness; // Added uniform for fog thickness
-    varying vec3 vPosition;
-    varying vec3 vNormal;
-    varying vec3 vLightDir;
-
-    void main() {
-        vec3 oxygenColor = vec3(0.0, 0.5, 1.0);
-        vec3 carbonColor = vec3(1.0, 0.3, 0.3);
-        vec3 nitrogenColor = vec3(0.8, 0.8, 0.0);
-
-        vec3 baseColor = mix(oxygenColor, carbonColor, carbon);
-        baseColor = mix(baseColor, nitrogenColor, nitrogen);
-
-        // Compute fog effect based on depth and thickness
-        float distance = length(vPosition);
-        float fogDensity = exp(-distance * fogThickness); // Control fog density
-        float fogFactor = smoothstep(0.1, 1.0, distance);
-
-        vec3 color = baseColor * max(dot(vNormal, vLightDir), 0.0);
-        gl_FragColor = vec4(color * fogFactor, fogDensity);
-    }
-`;
+function getBiomeColor(elevation) {
+    if (elevation < 0.001) return biomeColors.desert;
+    if (elevation < 0.004) return biomeColors.plains;
+    if (elevation < 0.015) return biomeColors.forest;
+    if (elevation < 0.02) return biomeColors.tundra;
+    return biomeColors.snow;
+}
 
 function generateNoise(x, y, z) {
     let noise = 0;
@@ -119,6 +137,7 @@ function generateNoise(x, y, z) {
 function createPlanet() {
     const geometry = new THREE.SphereGeometry(1, 128, 128);
     const vertices = geometry.attributes.position.array;
+    const colors = new Float32Array(vertices.length);
     const vertexCount = vertices.length / 3;
 
     for (let i = 0; i < vertexCount; i++) {
@@ -137,12 +156,20 @@ function createPlanet() {
         vertices[i * 3] *= scale;
         vertices[i * 3 + 1] *= scale;
         vertices[i * 3 + 2] *= scale;
+
+        const elevation = Math.sqrt(vertices[i * 3] ** 2 + vertices[i * 3 + 1] ** 2 + vertices[i * 3 + 2] ** 2) - 1;
+        const color = new THREE.Color(getBiomeColor(elevation));
+
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
     }
 
     geometry.computeVertexNormals();
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.attributes.position.needsUpdate = true;
 
-    const material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+    const material = new THREE.MeshStandardMaterial({ vertexColors: true });
     return new THREE.Mesh(geometry, material);
 }
 
@@ -175,6 +202,8 @@ function createAtmosphere() {
     if (atmosphere) {
         scene.remove(atmosphere);
     }
+
+    if (!atmosphereParams.showAtmosphere) return;
 
     const geometry = new THREE.SphereGeometry(1.1, 128, 128);
     const material = new THREE.ShaderMaterial({
@@ -213,6 +242,7 @@ function updatePlanetScale() {
 
 function updateWater() {
     water.scale.set(params.waterScale, params.waterScale, params.waterScale);
+    water.position.set(0, 0, 0);
 }
 
 function updateAtmosphere() {
@@ -223,6 +253,7 @@ function updateAtmosphere() {
         atmosphere.material.uniforms.fogThickness.value = atmosphereParams.fogThickness;
 
         let starColor;
+        // NOTE: Star color and type dosent yet change the atmosphere color
         switch (atmosphereParams.starType) {
             case 'K-type':
                 starColor = new THREE.Color(0xffa500); // Orange for K-type
@@ -235,6 +266,19 @@ function updateAtmosphere() {
         }
         atmosphere.material.uniforms.starColor.value = starColor;
         atmosphere.material.needsUpdate = true;
+    } else if (atmosphereParams.showAtmosphere) {
+        createAtmosphere();
+    }
+}
+
+function updateAtmosphereVisibility() {
+    if (atmosphereParams.showAtmosphere) {
+        createAtmosphere();
+    } else {
+        if (atmosphere) {
+            scene.remove(atmosphere);
+            atmosphere = null;
+        }
     }
 }
 
@@ -242,7 +286,9 @@ function animate() {
     requestAnimationFrame(animate);
     planet.rotation.y += params.rotationSpeed;
     water.rotation.y += params.rotationSpeed;
-    atmosphere.rotation.y += params.rotationSpeed;
+    if (atmosphere) {
+        atmosphere.rotation.y += params.rotationSpeed;
+    }
     renderer.render(scene, camera);
 }
 
