@@ -179,19 +179,27 @@ scene.add(planet);
 
 function createWater() {
     const textureLoader = new THREE.TextureLoader();
-    const gradientTexture = textureLoader.load('WaterTexture.png');
+    const waterTexture = textureLoader.load('WaterTexture.png');
+    const normalMap = textureLoader.load('WaterNormalMap.png');
+
+    const material = new THREE.MeshStandardMaterial({
+    color: 0x0066ff,  
+    roughness: 0.1,
+    metalness: 0.5,
+    normalMap: normalMap,
+    envMap: renderer.environment,
+    refractionRatio: 0.95,
+    transparent: true, 
+    opacity: 0.8,
+    emissive: 0x0033ff,
+    emissiveIntensity: 0.2
+});
+
 
     const geometry = new THREE.SphereGeometry(1, 128, 128);
-    const material = new THREE.MeshStandardMaterial({
-        color: 0x00aaff,
-        roughness: 0.1,
-        metalness: 0.6,
-        emissive: 0x00aaff,
-        emissiveIntensity: 0.1,
-        map: gradientTexture
-    });
     return new THREE.Mesh(geometry, material);
 }
+
 
 let water = createWater();
 water.scale.set(params.waterScale, params.waterScale, params.waterScale);
