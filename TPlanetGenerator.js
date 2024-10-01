@@ -64,7 +64,7 @@ const params = {
     persistence: 0.5,
     planetScale: 1.0,
     rotationSpeed: 0.01,
-    waterScale: 0.5,
+    waterScale: 1.0,
     flatlandThreshold: 0.1,
     plateauHeight: 1.5
 };
